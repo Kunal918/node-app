@@ -1,0 +1,56 @@
+pipeline {
+    agent any
+
+    environment {
+        SONARQUBE_ENV = 'sonar'         // Your SonarQube server name in Jenkins
+        DOCKER_CREDENTIALS = credentials('dockerhub-creds-id') // DockerHub creds added in Jenkins
+        REMOTE_USER = 'kunal'          // Remote server username
+        REMOTE_HOST = '172.16.24.220'   // Remote server IP
+        IMAGE_NAME = 'kunal918/nodeapp:latest'  // Your DockerHub image
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Kunal918/node-app.git'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    sh 'sonar-scanner'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $IMAGE_NAME .'
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                withDockerRegistry(credentialsId: 'dockerhub-creds-id', url: '') {
+                    sh 'docker push $IMAGE_NAME'
+                }
+            }
+        }
+
+        stage('Deploy on Remote Server') {
+            steps {
+                sshagent(['ssh-key-id']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
+                        docker pull $IMAGE_NAME &&
+                        docker stop app || true &&
+                        docker rm app || true &&
+                        docker run -d --name app -p 80:3000 $IMAGE_NAME
+                        "
+                    """
+                }
+            }
+        }
+    }
+}
