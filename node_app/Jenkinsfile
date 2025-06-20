@@ -4,7 +4,8 @@ node {
   def dockerRegistry = 'dockerregistry.ecosmob.net:5000'
 
   stage('Checkout') {
-    git branch: 'main', changelog: false, poll: false, url: 'https://github.com/Kunal918/node-app.git'
+    checkout scm
+   // git branch: 'main', changelog: false, poll: false, url: 'https://github.com/Kunal918/node-app.git'
   }
 stage('SonarQube analysis') {
       // requires SonarQube Scanner 2.8+
